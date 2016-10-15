@@ -18,26 +18,33 @@ def _load_batch(filename):
     ys = to_categorical(np.array(d['labels']), NUM_CLASSES)
     xs = xs.reshape(-1, 3, 32, 32)
     xs = (xs - IMAGENET_MEAN_RGB) / 255.0
-    # print 'Loading new batch:', xs.shape, ys.shape
     return xs, ys
 
 
 def load_cifar10(train_batches=TRAIN_BATCHES, test_batch=TEST_BATCH):
-    # the ordering is (samples, channels, width, height)
+    # the ordering is (samples, channels, height, width)
     train_xs = np.zeros((0, 3, 32, 32))
     train_ys = np.zeros((0, NUM_CLASSES), dtype=np.int32)
     for batch in train_batches:
         xs, ys = _load_batch(batch)
         train_xs = np.vstack((train_xs, xs))
         train_ys = np.vstack((train_ys, ys))
-    # print train_xs.shape, train_ys.shape
-    # order = np.array(range(len(train_ys)))
-    # np.random.shuffle(order)
-    # print len(order)
-    # train_xs = train_xs[order]
-    # train_ys = train_ys[order]
     test_xs, test_ys = _load_batch(test_batch)
     return train_xs, train_ys, test_xs, test_ys
+    # return train_xs.swapaxes(1, 3), train_ys, test_xs.swapaxes(1, 3), test_ys
+
+
+def augment_batch(batch, pad_dim=4):
+    augmented_batch = np.zeros(batch.shape)
+    num_imgs, _, height, width = batch.shape
+    for i in range(num_imgs):
+        img = batch[i]
+        if np.random.normal(0, 1, (1,))[0] >= 0.5:
+            img = img[:, :, ::-1]
+        img = np.pad(img, ((0,), (pad_dim,), (pad_dim,)), 'constant', constant_values=(0,1))
+        start_h, start_w = np.random.randint(0, 2*pad_dim, (2,))
+        augmented_batch[i] = img[:, start_h:start_h+height, start_w:start_w+width]
+    return augmented_batch
 
 
 if __name__ == '__main__':
