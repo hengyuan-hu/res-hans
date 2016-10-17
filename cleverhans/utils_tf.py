@@ -30,6 +30,15 @@ def tf_model_loss(y, pred, mean=True):
         return categorical_crossentropy(y, pred)
 
 
+def _get_learning_rate(epoch):
+    if epoch <= 80:
+        return 0.1
+    elif epoch <= 120:
+        return 0.01
+    else:
+        return 0.001
+
+
 def tf_model_train(sess, x, y, predictions, X_train, Y_train, X_test, Y_test,
                    save=False, predictions_adv=None, data_augmentor=None):
     """
@@ -46,14 +55,15 @@ def tf_model_train(sess, x, y, predictions, X_train, Y_train, X_test, Y_test,
     :return: True if model trained
     """
     print "Starting model training using TensorFlow."
+    learning_rate = tf.placeholder(tf.float32, shape=())
 
     # Define loss
     loss = tf_model_loss(y, predictions)
     if predictions_adv is not None:
         loss = (loss + tf_model_loss(y, predictions_adv)) / 2
 
-    # train_step = tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(loss)
-    train_step = tf.train.AdamOptimizer().minimize(loss)
+    train_step = tf.train.MomentumOptimizer(learning_rate, 0.9, use_nesterov=True).minimize(loss)
+    # train_step = tf.train.AdamOptimizer().minimize(loss)
     print "Defined optimizer."
 
     with sess.as_default():
@@ -62,15 +72,13 @@ def tf_model_train(sess, x, y, predictions, X_train, Y_train, X_test, Y_test,
 
         for epoch in xrange(FLAGS.nb_epochs):
             prev = time.time()
-            print("Epoch " + str(epoch))
+            print("Epoch %s, lr: %s" % (epoch, _get_learning_rate(epoch)))
 
             # Compute number of batches
             nb_batches = int(math.ceil(float(len(X_train)) / FLAGS.batch_size))
             assert nb_batches * FLAGS.batch_size >= len(X_train)
 
-
             for batch in range(nb_batches):
-
                 # Compute batch start and end indices
                 start, end = batch_indices(batch, len(X_train), FLAGS.batch_size)
                 batch_xs = X_train[start:end]
@@ -82,6 +90,7 @@ def tf_model_train(sess, x, y, predictions, X_train, Y_train, X_test, Y_test,
                 # Perform one training step
                 train_step.run(feed_dict={x: batch_xs,
                                           y: batch_ys,
+                                          learning_rate: _get_learning_rate(epoch),
                                           keras.backend.learning_phase(): 1})
             cur = time.time()
             print("\tTook " + str(cur - prev) + " seconds")
@@ -154,7 +163,6 @@ def tf_model_eval(sess, x, y, model, X_test, Y_test):
 
 def tf_model_load(sess):
     """
-
     :param sess:
     :param x:
     :param y:
