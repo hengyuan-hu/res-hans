@@ -1,6 +1,8 @@
 import tensorflow as tf
 import keras
 
+from square_layer import SquareMulLayer
+
 def get_session():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -27,7 +29,8 @@ def load_model(model_name): #model_file, weight_file):
     with open(model_file, 'r') as json_file:
         loaded_model_json = json_file.read()
 
-    loaded_model = keras.models.model_from_json(loaded_model_json)
+    loaded_model = keras.models.model_from_json(
+        loaded_model_json, custom_objects={'SquareMulLayer': SquareMulLayer})
     loaded_model.load_weights(weight_file)
     print('Loaded model from disk')
     return loaded_model
